@@ -62,9 +62,8 @@ def detect_ats(url: str) -> str:
 
 
 def title_is_relevant(title: str) -> bool:
-    t = title.lower()
-    is_bi = any(kw in t for kw in BI_KEYWORDS)
-    return is_bi
+    # Accept all job titles for a full-market analysis
+    return bool(title.strip())
 
 
 class CareerSpider(scrapy.Spider):
