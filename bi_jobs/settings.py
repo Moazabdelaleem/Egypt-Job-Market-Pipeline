@@ -90,13 +90,9 @@ PLAYWRIGHT_CONTEXTS = {
 DOWNLOADER_MIDDLEWARES = {
     # Disable the default UA middleware (we replace it)
     "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
-    # Disable default retry (we have our own)
-    "scrapy.downloadermiddlewares.retry.RetryMiddleware": None,
 
     # ── Our stealth stack ──
     "bi_jobs.middlewares.StealthHeadersMiddleware": 400,
-    "bi_jobs.middlewares.RandomDelayMiddleware":    500,
-    "bi_jobs.middlewares.SmartRetryMiddleware":     550,
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
