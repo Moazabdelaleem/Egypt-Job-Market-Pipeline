@@ -40,6 +40,8 @@ jobs:
           playwright install-deps
 
       - name: Run Career Spider
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           scrapy crawl career_spider
 
