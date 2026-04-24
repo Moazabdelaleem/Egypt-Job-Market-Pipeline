@@ -103,6 +103,8 @@ DOWNLOADER_MIDDLEWARES = {
 #   ITEM PIPELINES
 # ══════════════════════════════════════════════════════════════════════════════
 
+import os
+
 ITEM_PIPELINES = {
     "bi_jobs.pipelines.CleaningPipeline":       100,
     "bi_jobs.pipelines.DuplicateFilterPipeline": 200,
@@ -110,6 +112,8 @@ ITEM_PIPELINES = {
     "bi_jobs.pipelines.SkillExtractionPipeline": 260,
     "bi_jobs.pipelines.PostgresPipeline":        300,
 }
+
+DB_URL = os.environ.get('DATABASE_URL')
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   GENERAL SCRAPY
