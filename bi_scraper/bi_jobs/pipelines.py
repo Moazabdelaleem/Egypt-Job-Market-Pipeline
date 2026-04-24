@@ -148,9 +148,10 @@ class PostgresPipeline:
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(
-            db_url=crawler.settings.get('DB_URL', 'postgresql://postgres.ltawjjxepztidfdxlezq:leomessi1812@aws-1-eu-west-3.pooler.supabase.com:6543/postgres')
-        )
+        db_url = crawler.settings.get('DB_URL')
+        if not db_url:
+            raise ValueError("Missing DB_URL in settings. Please set the DATABASE_URL environment variable.")
+        return cls(db_url=db_url)
 
     def open_spider(self, spider):
         try:
