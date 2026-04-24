@@ -64,8 +64,7 @@ def detect_ats(url: str) -> str:
 def title_is_relevant(title: str) -> bool:
     t = title.lower()
     is_bi = any(kw in t for kw in BI_KEYWORDS)
-    is_intern = "intern" in t
-    return is_bi and is_intern
+    return is_bi
 
 
 class CareerSpider(scrapy.Spider):
