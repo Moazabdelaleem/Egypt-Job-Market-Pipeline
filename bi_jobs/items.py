@@ -15,3 +15,4 @@ class BiJobsItem(scrapy.Item):
     description  = scrapy.Field()   # first 500 chars of job description
     url          = scrapy.Field()
     scraped_at   = scrapy.Field()   # UTC timestamp of when we scraped it
+    skills       = scrapy.Field()   # extracted technical skills (list)

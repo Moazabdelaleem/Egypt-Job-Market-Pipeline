@@ -100,6 +100,9 @@ DOWNLOADER_MIDDLEWARES = {
 # ══════════════════════════════════════════════════════════════════════════════
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env file for local development
 
 ITEM_PIPELINES = {
     "bi_jobs.pipelines.CleaningPipeline":       100,

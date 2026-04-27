@@ -1,18 +1,18 @@
-name: BI Scraper Pipeline
+name: Egypt Job Market (Wuzzuf) Pipeline
 
 on:
   schedule:
-    # Scrape company career pages (every 2 days — 6 AM UTC)
+    # Scrape Wuzzuf (every 2 days — 6 AM UTC)
     - cron: '0 6 */2 * *'
   workflow_dispatch:
     inputs:
       spider:
         description: 'Which spider to run'
         required: true
-        default: 'career_spider'
+        default: 'wuzzuf_spider'
         type: choice
         options:
-          - career_spider
+          - wuzzuf_spider
 
 jobs:
   scrape:
@@ -39,11 +39,11 @@ jobs:
           playwright install chromium
           playwright install-deps
 
-      - name: Run Career Spider
+      - name: Run Wuzzuf Spider
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          scrapy crawl career_spider
+          scrapy crawl ${{ github.event.inputs.spider || 'wuzzuf_spider' }}
 
       - name: Upload CSV artifacts (Backup)
         if: always()

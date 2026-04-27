@@ -1,17 +1,17 @@
-# 📊 Egyptian Job Market BI Pipeline
+# 📊 Egypt Job Market Pipeline (Wuzzuf)
 
-An automated, end-to-end data engineering pipeline designed to harvest Business Intelligence, Data Science, and Data Engineering internship postings from 83 target companies in Egypt.
+An automated, end-to-end data engineering pipeline designed to harvest Business Intelligence, Data Science, and Data Engineering job postings from Wuzzuf, Egypt's leading job platform.
 
-The system extracts unstructured data from heterogeneous applicant tracking systems (Workable, Lever, Greenhouse, etc.), processes the text using NLP to extract technical skills, and continuously upserts the structured data into a cloud PostgreSQL database to power a live Power BI dashboard.
+The system extracts unstructured data, processes the text using NLP to extract technical skills, and continuously upserts the structured data into a cloud PostgreSQL database to power a live Power BI dashboard.
 
 ---
 
 ## 🏗️ Architecture & Data Flow
 
-1. **Extraction (`career_spider.py`)**
-   * Uses Scrapy and Playwright to stealthily crawl company career pages.
-   * Features dynamic ATS detection to route HTML to bespoke parsers.
-   * Filters specifically for "Intern" and "Internship" roles.
+1. **Extraction (`wuzzuf_spider.py`)**
+   * Uses Scrapy and Playwright to crawl Wuzzuf.
+   * Targets key roles: Data Analyst, Data Scientist, Data Engineer, BI Developer, etc.
+   * Handles pagination and dynamic content rendering.
 
 2. **NLP Processing (`SkillExtractionPipeline`)**
    * Processes the raw job descriptions.
@@ -26,31 +26,28 @@ The system extracts unstructured data from heterogeneous applicant tracking syst
 
 ## 🥷 Stealth & Anti-Bot Measures
 
-To avoid 403 Forbidden errors and CAPTCHAs, the pipeline employs a robust stealth middleware stack (`middlewares.py`):
+To ensure reliable data collection, the pipeline employs several measures:
 
-1. **Playwright Stealth Patches:** Strips automation markers like `navigator.webdriver`.
-2. **Dynamic Header Injection:** Fakes human-like `Sec-Fetch-Dest` and `Accept-Language` headers.
-3. **Rotating User-Agents:** Draws from a curated pool of realistic Chrome, Edge, and Firefox strings.
-4. **Gaussian Random Delays:** Mimics human reading speed by drawing sleep intervals from a Gaussian distribution.
-5. **Human-like Interaction:** Automatically simulates randomized scrolling to trigger lazy-loaded elements.
-6. **Exponential Backoff:** Gracefully handles rate limits (HTTP 429) and server overloads (HTTP 503).
+1. **Rotating User-Agents:** Draws from a curated pool of realistic browser strings.
+2. **Dynamic Headers:** Mimics human browser behavior with appropriate headers.
+3. **Randomized Delays:** Implements delays between requests to avoid rate limiting.
+4. **Exponential Backoff:** Gracefully handles server errors and rate limits.
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-bi_scraper/
+Egypt-Job-Market-Pipeline/
 ├── .github/workflows/
 │   └── scraper.yml              # CI/CD pipeline for automated scraping
 ├── bi_jobs/
 │   ├── spiders/
-│   │   └── career_spider.py     # Main ATS & Career site spider
+│   │   └── wuzzuf_spider.py     # Main Wuzzuf spider
 │   ├── items.py                 # Scrapy Item definition
-│   ├── middlewares.py           # Stealth, U/A rotation, and delays
+│   ├── middlewares.py           # Stealth and rotation middlewares
 │   ├── pipelines.py             # NLP extraction & PostgreSQL integration
-│   └── settings.py              # Playwright config & pipeline priorities
-├── companies_seed.json          # Master list of 83 target companies
+│   └── settings.py              # Scrapy configuration
 └── requirements.txt             # Python dependencies
 ```
 
@@ -61,7 +58,7 @@ bi_scraper/
 ### Prerequisites
 * Python 3.10+
 * Playwright browsers
-* A PostgreSQL Database URL (configured as `DB_URL` environment variable)
+* A PostgreSQL Database URL (configured as `DATABASE_URL` environment variable)
 
 ### Installation
 ```bash
@@ -72,14 +69,15 @@ playwright install-deps
 
 ### Running Locally
 ```bash
-# Ensure your DB_URL is set in settings.py or exported in your terminal
-scrapy crawl career_spider
+# Ensure your DATABASE_URL is exported in your terminal
+export DATABASE_URL="your_connection_string"
+scrapy crawl wuzzuf_spider
 ```
 
 ---
 
 ## ⚙️ Automation (GitHub Actions)
 
-The pipeline is fully automated via GitHub Actions (`scraper.yml`) with zero-cost execution.
+The pipeline is fully automated via GitHub Actions (`scraper.yml`):
 * **Schedule:** Runs automatically every 2 days.
 * **Database Sync:** Connects to the cloud PostgreSQL database and upserts the latest job market state, ensuring the Power BI dashboard is always live.

@@ -2,3 +2,7 @@ Scrapy>=2.11
 scrapy-playwright>=0.0.33
 playwright>=1.42
 psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+pandas>=2.0
+matplotlib>=3.7
+seaborn>=0.12
