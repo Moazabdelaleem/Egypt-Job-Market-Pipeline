@@ -84,7 +84,7 @@ SEARCH_QUERIES = [
     "operations manager",
 ]
 
-MAX_PAGES_PER_QUERY = 20  # safety cap
+MAX_PAGES_PER_QUERY = 100  # Captures up to ~1500 jobs per query (3 months scope)
 
 
 class WuzzufSpider(scrapy.Spider):
@@ -159,6 +159,7 @@ class WuzzufSpider(scrapy.Spider):
             logger.info(f"[Wuzzuf] Query '{query}' page {page_num}: {len(cards)} cards found")
 
             jobs_on_page = 0
+            stop_pagination = False
             for card in cards:
                 # Title + detail link
                 title_link = card.css("h2 a.css-o171kl, h2 a[href*='/jobs/p/']")
@@ -191,11 +192,24 @@ class WuzzufSpider(scrapy.Spider):
                 type_tags = card.css("span.css-1lh32fc::text, div.css-1lh32fc span::text").getall()
                 job_type = ", ".join([t.strip() for t in type_tags if t.strip()]) or ""
 
-                # Date posted
-                date_posted = card.css(
-                    "div.css-do6t5g::text, span.css-do6t5g::text, "
-                    "div.css-4c4ojb::text, time::text"
-                ).get(default="").strip()
+                # Date posted (Robust extraction)
+                date_posted = ""
+                all_texts = card.css("::text").getall()
+                for t in all_texts:
+                    t_lower = t.lower()
+                    if "ago" in t_lower or "yesterday" in t_lower or "month" in t_lower or "year" in t_lower:
+                        date_posted = t.strip()
+                        break
+
+                date_lower = date_posted.lower()
+                
+                # Check if we've reached jobs older than 3 months
+                # We look for 4+ months or years
+                if any(x in date_lower for x in ["4 months", "5 months", "6 months", "7 months", "8 months", "9 months", "10 months", "11 months", "year"]):
+                    logger.info(f"[Wuzzuf] Found old job ({date_posted}) on '{query}'. Will stop paginating after this page.")
+                    stop_pagination = True
+                    # Skip scraping this specific card since it's too old
+                    continue
 
                 # Build partial item, then follow detail page for full description
                 meta = {
@@ -225,7 +239,7 @@ class WuzzufSpider(scrapy.Spider):
                 )
 
             # ── Pagination ────────────────────────────────────────────────────
-            if jobs_on_page > 0 and page_num < MAX_PAGES_PER_QUERY:
+            if jobs_on_page > 0 and page_num < MAX_PAGES_PER_QUERY and not stop_pagination:
                 next_page = page_num + 1
                 next_url = (
                     f"https://wuzzuf.net/search/jobs/?q={query}&a=hpb&start={next_page - 1}"
