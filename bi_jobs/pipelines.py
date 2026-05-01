@@ -450,6 +450,28 @@ class PostgresPipeline:
                 ORDER BY count DESC;
             """)
 
+            self.cursor.execute("""
+                CREATE OR REPLACE VIEW v_location_hierarchy AS
+                WITH parsed AS (
+                    SELECT DISTINCT location,
+                           string_to_array(location, ',') AS parts
+                    FROM job_postings
+                    WHERE status = 'active' AND location IS NOT NULL AND location != ''
+                )
+                SELECT 
+                    location,
+                    TRIM(parts[array_length(parts, 1)]) AS country,
+                    CASE 
+                        WHEN array_length(parts, 1) >= 2 THEN TRIM(parts[array_length(parts, 1) - 1])
+                        ELSE 'Unknown'
+                    END AS city,
+                    CASE 
+                        WHEN array_length(parts, 1) >= 3 THEN TRIM(parts[array_length(parts, 1) - 2])
+                        ELSE 'Unknown'
+                    END AS area
+                FROM parsed;
+            """)
+
         except Exception as e:
             spider.logger.error(f"Failed to connect to PostgreSQL: {e}")
             raise e
