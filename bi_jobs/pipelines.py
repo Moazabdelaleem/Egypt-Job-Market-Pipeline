@@ -17,7 +17,7 @@ import re
 import logging
 import hashlib
 import psycopg2
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapy.exceptions import DropItem
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,35 @@ class CleaningPipeline:
             return True
         return False
 
+    def _calculate_historical_date(self, date_posted: str, scraped_at: str) -> str:
+        """Parse raw '2 months ago' to a YYYY-MM-DD date."""
+        if not date_posted:
+            return ""
+        
+        try:
+            base_date = datetime.strptime(scraped_at, "%Y-%m-%d %H:%M:%S")
+        except:
+            base_date = datetime.utcnow()
+
+        text = date_posted.lower()
+        num_match = re.search(r'\d+', text)
+        num = int(num_match.group()) if num_match else 1
+
+        if 'hour' in text or 'minute' in text or 'second' in text or 'moment' in text:
+            hist_date = base_date
+        elif 'day' in text:
+            hist_date = base_date - timedelta(days=num)
+        elif 'month' in text:
+            hist_date = base_date - timedelta(days=num*30)
+        elif 'year' in text:
+            hist_date = base_date - timedelta(days=num*365)
+        elif 'yesterday' in text:
+            hist_date = base_date - timedelta(days=1)
+        else:
+            hist_date = base_date
+            
+        return hist_date.strftime("%Y-%m-%d")
+
     def process_item(self, item, spider):
         # Basic cleaning on all text fields
         for field in ["title", "company", "location", "experience",
@@ -134,6 +163,7 @@ class CleaningPipeline:
         # Defaults
         item.setdefault("salary", "Not Specified")
         item.setdefault("scraped_at", datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+        item["historical_date"] = self._calculate_historical_date(item.get("date_posted", ""), item["scraped_at"])
 
         if not item.get("title"):
             raise DropItem("Missing title — dropping item")
@@ -342,11 +372,29 @@ class PostgresPipeline:
                 ("keywords", "TEXT"),
                 ("description", "TEXT"),
                 ("skills", "TEXT[]"),
+                ("historical_date", "DATE"),
             ]
             for col_name, col_type in migration_cols:
                 self.cursor.execute(f"""
                     ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS {col_name} {col_type};
                 """)
+
+            # ── Relational Views for Power BI (Star Schema) ──────────────────
+            # This allows Power BI to import these as related tables without Power Query
+
+            self.cursor.execute("""
+                CREATE OR REPLACE VIEW v_job_types_expanded AS
+                SELECT job_hash, TRIM(unnest(string_to_array(job_type, ','))) AS job_type_individual
+                FROM job_postings
+                WHERE status = 'active' AND job_type IS NOT NULL AND job_type != '';
+            """)
+
+            self.cursor.execute("""
+                CREATE OR REPLACE VIEW v_job_skills_expanded AS
+                SELECT job_hash, unnest(skills) AS skill
+                FROM job_postings
+                WHERE status = 'active' AND skills IS NOT NULL;
+            """)
 
             # ── Analysis Views for Power BI ──────────────────────────────────
             self.cursor.execute("""
@@ -422,9 +470,9 @@ class PostgresPipeline:
                 INSERT INTO job_postings (
                     job_hash, title, company, location, experience, job_type,
                     salary, career_level, date_posted, keywords, description,
-                    url, skills, status
+                    url, skills, status, historical_date
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active')
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s)
                 ON CONFLICT (job_hash) DO UPDATE 
                 SET date_last_seen = CURRENT_TIMESTAMP,
                     skills = EXCLUDED.skills,
@@ -433,6 +481,7 @@ class PostgresPipeline:
                     career_level = EXCLUDED.career_level,
                     experience = EXCLUDED.experience,
                     job_type = EXCLUDED.job_type,
+                    historical_date = EXCLUDED.historical_date,
                     status = 'active';
             """, (
                 job_hash,
@@ -447,7 +496,8 @@ class PostgresPipeline:
                 item.get('keywords', ''),
                 item.get('description', ''),
                 item.get('url', ''),
-                item.get('skills', [])
+                item.get('skills', []),
+                item.get('historical_date', None)
             ))
         except Exception as e:
             spider.logger.error(f"Failed to insert item into DB: {e}")
