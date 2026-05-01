@@ -10,7 +10,7 @@ Techniques used:
 """
 
 import random
-import time
+import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -74,11 +74,11 @@ class RandomDelayMiddleware:
         max_delay = crawler.settings.getfloat("RANDOM_DELAY_MAX",  12.0)
         return cls(mean, sigma, min_delay, max_delay)
 
-    def process_request(self, request, spider):
+    async def process_request(self, request, spider):
         delay = random.gauss(self.mean, self.sigma)
         delay = max(self.min_delay, min(self.max_delay, delay))
         logger.debug(f"[RandomDelay] sleeping {delay:.2f}s before {request.url}")
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
 
 # ── 3.  Stealth-Header Middleware ──────────────────────────────────────────────
@@ -139,15 +139,15 @@ class SmartRetryMiddleware:
         http_codes  = [int(c) for c in http_codes]
         return cls(max_retries, base_delay, max_delay, http_codes)
 
-    def process_response(self, request, response, spider):
+    async def process_response(self, request, response, spider):
         if response.status in self.http_codes:
-            return self._retry(request, response.status, spider)
+            return await self._retry(request, response.status, spider)
         return response
 
-    def process_exception(self, request, exception, spider):
-        return self._retry(request, type(exception).__name__, spider)
+    async def process_exception(self, request, exception, spider):
+        return await self._retry(request, type(exception).__name__, spider)
 
-    def _retry(self, request, reason, spider):
+    async def _retry(self, request, reason, spider):
         retries = request.meta.get(self.RETRY_COUNT_KEY, 0)
         if retries < self.max_retries:
             delay = min(
@@ -158,7 +158,7 @@ class SmartRetryMiddleware:
                 f"[SmartRetry] Retrying ({retries+1}/{self.max_retries}) "
                 f"after {delay:.1f}s — reason: {reason} — {request.url}"
             )
-            time.sleep(delay)
+            await asyncio.sleep(delay)
             new_request = request.copy()
             new_request.meta[self.RETRY_COUNT_KEY] = retries + 1
             new_request.dont_filter = True
