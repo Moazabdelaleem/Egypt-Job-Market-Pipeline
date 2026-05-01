@@ -11,6 +11,7 @@ class BiJobsItem(scrapy.Item):
     salary       = scrapy.Field()
     career_level = scrapy.Field()
     date_posted  = scrapy.Field()
+    historical_date = scrapy.Field() # Calculated Date (e.g. 2024-02-28)
     keywords     = scrapy.Field()   # skills / tags
     description  = scrapy.Field()   # first 500 chars of job description
     url          = scrapy.Field()
