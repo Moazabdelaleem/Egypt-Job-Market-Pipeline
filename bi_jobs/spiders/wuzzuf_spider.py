@@ -20,6 +20,7 @@ Anti-detection:
 import re
 import random
 import logging
+import asyncio
 from datetime import datetime
 from urllib.parse import urlencode, urljoin
 
@@ -84,16 +85,18 @@ SEARCH_QUERIES = [
     "operations manager",
 ]
 
-MAX_PAGES_PER_QUERY = 100  # Captures up to ~1500 jobs per query (3 months scope)
+MAX_PAGES_PER_QUERY = 10  # ~150 jobs per query; dedup handles overlap
 
 
 class Target_Job_BoardSpider(scrapy.Spider):
     name = "target_job_board_spider"
     allowed_domains = ["jobboard.com"]
     custom_settings = {
-        "CONCURRENT_REQUESTS": 1,
-        "CONCURRENT_REQUESTS_PER_DOMAIN": 1,
-        "DEPTH_LIMIT": 3,
+        "CONCURRENT_REQUESTS": 3,
+        "CONCURRENT_REQUESTS_PER_DOMAIN": 3,
+        "DEPTH_PRIORITY": 1,       # depth-first: visit listing → read details → next listing (more human-like)
+        "SCHEDULER_DISK_QUEUE": "scrapy.squeues.PickleFifoDiskQueue",
+        "SCHEDULER_MEMORY_QUEUE": "scrapy.squeues.FifoMemoryQueue",
     }
 
     def __init__(self, *args, **kwargs):
@@ -136,10 +139,15 @@ class Target_Job_BoardSpider(scrapy.Spider):
         page_num = response.meta.get("page_num", 1)
 
         try:
-            # Human-like wait + scroll
-            await page.wait_for_timeout(random.randint(1500, 3000))
-            await self._human_scroll(page)
-            await page.wait_for_timeout(random.randint(1000, 2000))
+            # Human-like wait + scroll — hard 25s timeout to prevent hangs
+            try:
+                await asyncio.wait_for(
+                    self._safe_listing_interact(page),
+                    timeout=25
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[Target_Job_Board] Playwright timed out on '{query}' page {page_num} — skipping")
+                return
 
             if await self._is_blocked(page):
                 logger.warning(f"[Target_Job_Board] Blocked on '{query}' page {page_num} — skipping")
@@ -189,7 +197,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
                 location = re.sub(r"^Location\s*", "", location).strip()
 
                 # Job type tags (Full Time, Part Time, etc.)
-                type_tags = card.css("span.css-1lh32fc::text, div.css-1lh32fc span::text").getall()
+                type_tags = card.css("span.eoyjyou0::text").getall()
                 job_type = ", ".join([t.strip() for t in type_tags if t.strip()]) or ""
 
                 # Date posted (Robust extraction)
@@ -274,7 +282,10 @@ class Target_Job_BoardSpider(scrapy.Spider):
 
         finally:
             if page:
-                await page.close()
+                try:
+                    await asyncio.wait_for(page.close(), timeout=5)
+                except Exception:
+                    pass
 
     # ── Parse detail page ─────────────────────────────────────────────────────
     async def parse_detail(self, response):
@@ -282,8 +293,15 @@ class Target_Job_BoardSpider(scrapy.Spider):
         item_data = response.meta.get("item_data", {})
 
         try:
-            # Human-like wait
-            await page.wait_for_timeout(random.randint(1000, 2500))
+            # Human-like wait — hard 20s timeout to prevent hangs
+            try:
+                await asyncio.wait_for(
+                    page.wait_for_timeout(random.randint(500, 1200)),
+                    timeout=20
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[Target_Job_Board] Detail page timed out: {response.url} — skipping")
+                return
 
             content = await page.content()
             new_response = response.replace(body=content.encode("utf-8"))
@@ -313,44 +331,28 @@ class Target_Job_BoardSpider(scrapy.Spider):
                     new_response.css("section ::text, article ::text").getall()
                 )
 
-            # ── Extract additional metadata ───────────────────────────────────
-            # Experience level
-            experience = ""
-            exp_match = new_response.css(
-                "div.css-rcl8e5 span::text, "
-                "span[class*='experience']::text"
-            ).getall()
-            for e in exp_match:
-                if "yr" in e.lower() or "experience" in e.lower() or "entry" in e.lower():
-                    experience = e.strip()
-                    break
+            # ── Extract additional metadata (Robust extraction) ───────────────
+            def get_meta_value(label_name):
+                # Target_Job_Board uses a span for the label and a following span for the value
+                xpath = f"//span[contains(text(), '{label_name}')]/following-sibling::span/text()"
+                val = new_response.xpath(xpath).get(default="").strip()
+                if not val:
+                    # Fallback to general span if XPath fails
+                    val = new_response.css("span.css-iu2m7n::text").get(default="").strip()
+                return val
 
-            # Career level
-            career_level = ""
-            level_texts = new_response.css(
-                "div.css-rcl8e5 span::text, span.css-1k5ee52::text"
-            ).getall()
-            for lt in level_texts:
-                lt_clean = lt.strip().lower()
-                if any(kw in lt_clean for kw in [
-                    "entry", "junior", "mid", "senior", "manager", "director",
-                    "experienced", "student", "fresh"
-                ]):
-                    career_level = lt.strip()
-                    break
+            experience = get_meta_value("Experience Needed")
+            career_level = get_meta_value("Career Level")
+            salary = get_meta_value("Salary") or "Not Specified"
 
-            # Salary
-            salary = "Not Specified"
-            salary_el = new_response.css(
-                "span[class*='salary']::text, div[class*='salary']::text"
-            ).get(default="")
-            if salary_el and salary_el.strip():
-                salary = salary_el.strip()
+            # Job Type (often richer on detail page)
+            detail_types = new_response.css("div.css-1earnj5::text, a.css-wzyv7i::text").getall()
+            if detail_types:
+                item_data["job_type"] = ", ".join(sorted(list(set([t.strip() for t in detail_types if t.strip()]))))
 
             # Keywords / tags
             keywords_list = new_response.css(
-                "a.css-1jf4wgr::text, a[class*='tag']::text, "
-                "span.css-1ebpr::text"
+                "a.css-1z08isx::text, a.css-1jf4wgr::text, span.css-1ebpr::text"
             ).getall()
             keywords = ", ".join([k.strip() for k in keywords_list if k.strip()])
 
@@ -384,21 +386,34 @@ class Target_Job_BoardSpider(scrapy.Spider):
 
         finally:
             if page:
-                await page.close()
+                try:
+                    await asyncio.wait_for(page.close(), timeout=5)
+                except Exception:
+                    pass
 
     # ══════════════════════════════════════════════════════════════════════════
     #   HELPERS
     # ══════════════════════════════════════════════════════════════════════════
 
+    async def _safe_listing_interact(self, page):
+        """Combined wait + scroll for listing pages — called with an outer asyncio.wait_for."""
+        await page.wait_for_timeout(random.randint(800, 1500))
+        await self._human_scroll(page)
+        await page.wait_for_timeout(random.randint(500, 1000))
+
     async def _human_scroll(self, page):
         """Scroll page in human-like increments."""
         try:
-            total = await page.evaluate("document.body.scrollHeight")
+            total = await asyncio.wait_for(
+                page.evaluate("document.body.scrollHeight"), timeout=5
+            )
             pos = 0
             while pos < total:
                 step = random.randint(300, 700)
                 pos = min(pos + step, total)
-                await page.evaluate(f"window.scrollTo(0, {pos})")
+                await asyncio.wait_for(
+                    page.evaluate(f"window.scrollTo(0, {pos})"), timeout=5
+                )
                 await page.wait_for_timeout(random.randint(300, 700))
         except Exception:
             pass

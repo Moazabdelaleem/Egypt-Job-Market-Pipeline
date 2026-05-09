@@ -41,13 +41,18 @@ To ensure reliable data collection, the pipeline employs several measures:
 Egypt-Job-Market-Pipeline/
 ├── .github/workflows/
 │   └── scraper.yml              # CI/CD pipeline for automated scraping
-├── bi_jobs/
+├── bi_jobs/                     # Scrapy pipeline & spider code
 │   ├── spiders/
 │   │   └── target_job_board_spider.py     # Main Target_Job_Board spider
 │   ├── items.py                 # Scrapy Item definition
 │   ├── middlewares.py           # Stealth and rotation middlewares
 │   ├── pipelines.py             # NLP extraction & PostgreSQL integration
 │   └── settings.py              # Scrapy configuration
+├── docs/                        # Project documentation, guides, and architecture
+├── notebooks/                   # Jupyter notebooks for exploratory data analysis
+├── powerbi/                     # Power BI dashboard file (.pbix) and theme
+├── scripts/                     # Utility scripts (e.g., database auditing)
+├── supabase_setup/              # SQL schema, views, and data warehouse definitions
 └── requirements.txt             # Python dependencies
 ```
 

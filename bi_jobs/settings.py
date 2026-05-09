@@ -13,29 +13,29 @@ COOKIES_ENABLED = False             # avoid tracking cookies
 TELNETCONSOLE_ENABLED = False       # no open ports
 
 # Base Scrapy download delay (on top of our RandomDelayMiddleware)
-DOWNLOAD_DELAY = 2
+DOWNLOAD_DELAY = 1
 RANDOMIZE_DOWNLOAD_DELAY = True
 
 # Throttle concurrency to look like a single user
-CONCURRENT_REQUESTS = 1
-CONCURRENT_REQUESTS_PER_DOMAIN = 1
+CONCURRENT_REQUESTS = 3
+CONCURRENT_REQUESTS_PER_DOMAIN = 3
 # CONCURRENT_REQUESTS_PER_IP = 1
 
 # Auto-throttle: dynamically adjusts delay based on server load
 AUTOTHROTTLE_ENABLED = True
-AUTOTHROTTLE_START_DELAY = 3
-AUTOTHROTTLE_MAX_DELAY = 15
-AUTOTHROTTLE_TARGET_CONCURRENCY = 1.0
+AUTOTHROTTLE_START_DELAY = 2
+AUTOTHROTTLE_MAX_DELAY = 10
+AUTOTHROTTLE_TARGET_CONCURRENCY = 2.0
 AUTOTHROTTLE_DEBUG = False
 
 # Timeout (seconds)
 DOWNLOAD_TIMEOUT = 30
 
 # ── RandomDelayMiddleware Tuning ──────────────────────────────────────────────
-RANDOM_DELAY_MEAN  = 4.0    # centre of Gaussian (seconds)
-RANDOM_DELAY_SIGMA = 2.0    # spread
-RANDOM_DELAY_MIN   = 1.5    # floor
-RANDOM_DELAY_MAX   = 12.0   # ceiling
+RANDOM_DELAY_MEAN  = 2.0    # centre of Gaussian (seconds)
+RANDOM_DELAY_SIGMA = 1.0    # spread
+RANDOM_DELAY_MIN   = 0.5    # floor
+RANDOM_DELAY_MAX   = 5.0    # ceiling
 
 # ── SmartRetryMiddleware Tuning ───────────────────────────────────────────────
 SMART_RETRY_TIMES      = 4
@@ -66,6 +66,9 @@ PLAYWRIGHT_LAUNCH_OPTIONS = {
         "--lang=en-US,en",
     ],
 }
+
+# Hard timeout for any single Playwright page operation (prevents hanging)
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 30_000  # 30 seconds
 
 # Inject stealth JS into every new Playwright page automatically
 PLAYWRIGHT_CONTEXTS = {
@@ -116,6 +119,15 @@ ITEM_PIPELINES = {
 }
 
 DB_URL = os.environ.get('DATABASE_URL')
+DATABASE_URL = DB_URL  # exposed for NormalizationExtension
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   EXTENSIONS
+# ══════════════════════════════════════════════════════════════════════════════
+
+EXTENSIONS = {
+    "bi_jobs.extensions.NormalizationExtension": 500,
+}
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   GENERAL SCRAPY
@@ -128,3 +140,6 @@ FEED_EXPORT_ENCODING = "utf-8"
 LOG_LEVEL = "INFO"
 LOG_FORMAT = "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
 LOG_DATEFORMAT = "%Y-%m-%d %H:%M:%S"
+
+import logging
+logging.getLogger("asyncio").setLevel(logging.CRITICAL)
