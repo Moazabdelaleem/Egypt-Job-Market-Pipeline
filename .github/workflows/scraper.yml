@@ -46,6 +46,12 @@ jobs:
         run: |
           scrapy crawl ${{ github.event.inputs.spider || 'web_spider' }}
 
+      - name: Run NLP Normalization (Bronze -> Silver)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          python bi_jobs/normalize.py
+
       - name: Upload CSV artifacts (Backup)
         if: always()
         uses: actions/upload-artifact@v4
