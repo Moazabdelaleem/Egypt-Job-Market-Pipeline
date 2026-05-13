@@ -1,6 +1,6 @@
 # 📊 Egypt Job Market Intelligence Pipeline
 
-> An automated, end-to-end data engineering pipeline that harvests job postings from **Target_Job_Board** — Egypt's leading job platform — processes them through a **Medallion Data Warehouse**, and powers a live **Power BI dashboard** with real-time market intelligence.
+> An automated, end-to-end data engineering pipeline that harvests job postings from **multiple Egyptian job posting websites**, processes them through a **Medallion Data Warehouse**, and powers a live **Power BI dashboard** with real-time market intelligence.
 
 ---
 
@@ -23,7 +23,7 @@
 The pipeline follows a **Medallion Architecture**, moving data from raw extraction through progressive refinement into analytics-ready layers.
 
 ```
-[Target_Job_Board.net]
+[Job Postings Websites]
       │  Scrapy + Playwright crawl
       ▼
 ┌─────────────────────────────────────────┐
@@ -134,7 +134,7 @@ Views consumed directly by Power BI via a live PostgreSQL connection:
 The dashboard connects directly to Supabase via a live PostgreSQL connection and is built on a **Star Schema** using the Silver layer as the fact table, with the analytical views as dimension/bridge tables.
 
 **Themes:**
-- `powerbi/Target_Job_Board_theme.json` — Brand-aligned color scheme
+- `powerbi/JobMarket_theme.json` — Brand-aligned color scheme
 - `EgyptJobMarket_CLevel_Theme.json` — Clean, C-level executive theme (light, professional)
 
 **Dashboard Pages:**
@@ -158,7 +158,7 @@ Egypt-Job-Market-Pipeline/
 │   └── scraper.yml                       # CI/CD: scheduled spider run every 2 days
 ├── bi_jobs/                              # Scrapy project root
 │   ├── spiders/
-│   │   └── target_job_board_spider.py              # Main crawler (Scrapy + Playwright)
+│   │   └── web_spider.py                 # Main crawler (Scrapy + Playwright)
 │   ├── items.py                          # Scrapy Item schema definition
 │   ├── middlewares.py                    # Stealth: user-agent rotation, delays, backoff
 │   ├── normalize.py                      # Bronze → Silver NLP normalization engine
@@ -170,7 +170,7 @@ Egypt-Job-Market-Pipeline/
 ├── output/                               # Local CSV backups — one file per run date (gitignored)
 ├── powerbi/
 │   ├── Egyptian_Job_Market_Dashboard.pbix
-│   └── Target_Job_Board_theme.json                 # Power BI color theme
+│   └── JobMarket_theme.json              # Power BI color theme
 ├── scripts/
 │   └── audit_db.py                       # Database audit, health checks & row counts
 ├── supabase_setup/
@@ -212,11 +212,11 @@ Run `supabase_setup/create_silver_table.sql` in your Supabase SQL Editor to crea
 ### 4. Run the Spider
 
 ```bash
-scrapy crawl target_job_board_spider
+scrapy crawl web_spider
 ```
 
 The spider will:
-1. Crawl Target_Job_Board for target job roles
+1. Crawl job posting websites for target job roles
 2. Process all items through the 5-stage pipeline
 3. UPSERT results into `job_postings` (Bronze)
 4. Automatically trigger `normalize.py` to populate `job_postings_clean` (Silver)
@@ -236,8 +236,18 @@ The pipeline is fully automated via GitHub Actions (`.github/workflows/scraper.y
 - **Schedule:** Runs automatically every **2 days**
 - **Secrets Required:** `DATABASE_URL` must be set as a GitHub repository secret
 - **On each run:**
-  - Crawls Target_Job_Board for all target roles
+  - Crawls job posting websites for all target roles
   - UPSERTs new/updated jobs into the Bronze layer
   - Marks stale jobs as `expired` (status lifecycle management)
   - Triggers Silver layer normalization
   - Power BI dashboard reflects the updated data on next refresh
+
+---
+
+## 🔭 Future Work
+
+- **Multi-source expansion** — Add scrapers for additional Egyptian and regional job boards (e.g., LinkedIn Egypt, Forasna, Bayt), with a `source` field added to the Bronze layer to enable cross-platform comparisons and unified market analytics.
+- **Gemini API NLP** — Replace the current regex-based classification engine with Gemini API calls for richer, context-aware job title normalization, seniority inference, and Arabic/English skill extraction.
+- **Real-time streaming** — Move from scheduled batch scraping to event-driven ingestion using a message queue (e.g., Kafka or Supabase Realtime) for continuous, low-latency data updates.
+- **Salary benchmarking** — Enrich parsed salary data with inflation adjustments and cross-company / cross-sector benchmarks to produce actionable compensation intelligence.
+- **Interactive web dashboard** — Publish a standalone HTML dashboard and infographic derived from the Gold layer for stakeholders who do not have access to Power BI.

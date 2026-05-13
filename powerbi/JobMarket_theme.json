@@ -1,0 +1,31 @@
+{
+  "name": "Egypt Job Market Premium Dark Mode",
+  "dataColors": [
+    "#6366f1", "#22c55e", "#f59e0b", "#3b82f6",
+    "#a855f7", "#ec4899", "#14b8a6", "#ef4444"
+  ],
+  "background": "#0f172a",
+  "foreground": "#e2e8f0",
+  "tableAccent": "#6366f1",
+  "textClasses": {
+    "label": { "color": "#94a3b8", "fontFace": "Segoe UI" },
+    "callout": { "color": "#ffffff", "fontFace": "Segoe UI Semibold", "fontSize": 22 },
+    "title": { "color": "#ffffff", "fontFace": "Segoe UI Semibold", "fontSize": 12 },
+    "header": { "color": "#e2e8f0", "fontFace": "Segoe UI Semibold" }
+  },
+  "visualStyles": {
+    "page": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#0f172a" } }, "transparency": 0 }],
+        "outspace": [{ "color": { "solid": { "color": "#0f172a" } } }]
+      }
+    },
+    "*": {
+      "*": {
+        "background": [{ "color": { "solid": { "color": "#1e293b" } }, "transparency": 0 }],
+        "border": [{ "show": true, "color": { "solid": { "color": "#334155" } }, "radius": 10 }],
+        "dropShadow": [{ "show": true }]
+      }
+    }
+  }
+}

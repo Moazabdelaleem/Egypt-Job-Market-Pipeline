@@ -1,9 +1,9 @@
 """
-target_job_board_spider.py — Target_Job_Board.net Job Market Spider
-=================================================
-Scrapes all job listings from Target_Job_Board.net (Egypt's largest job
-aggregator) using paginated search results + detail page navigation
-to extract full job descriptions for NLP skill extraction.
+web_spider.py — Egyptian Job Market Spider
+==========================================
+Scrapes job listings from Egyptian job posting websites using
+paginated search results + detail page navigation to extract full
+job descriptions for NLP skill extraction.
 
 Strategy:
   • Start from the paginated search index (/search/jobs/)
@@ -88,8 +88,8 @@ SEARCH_QUERIES = [
 MAX_PAGES_PER_QUERY = 10  # ~150 jobs per query; dedup handles overlap
 
 
-class Target_Job_BoardSpider(scrapy.Spider):
-    name = "target_job_board_spider"
+class JobMarketSpider(scrapy.Spider):
+    name = "web_spider"
     allowed_domains = ["jobboard.com"]
     custom_settings = {
         "CONCURRENT_REQUESTS": 3,
@@ -105,7 +105,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
         self.seen_urls = set()
         self.seen_hashes = set()  # company+title+location dedup
         logger.info(
-            f"[Target_Job_Board] Initialised with {len(SEARCH_QUERIES)} search queries, "
+            f"[Spider] Initialised with {len(SEARCH_QUERIES)} search queries, "
             f"max {MAX_PAGES_PER_QUERY} pages each"
         )
 
@@ -113,7 +113,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
     def start_requests(self):
         for query in SEARCH_QUERIES:
             url = f"https://jobboard.com/search/jobs/?q={query}&a=hpb"
-            logger.info(f"[Target_Job_Board] Starting search: '{query}' → {url}")
+            logger.info(f"[Spider] Starting search: '{query}' → {url}")
 
             yield scrapy.Request(
                 url,
@@ -146,11 +146,11 @@ class Target_Job_BoardSpider(scrapy.Spider):
                     timeout=25
                 )
             except asyncio.TimeoutError:
-                logger.warning(f"[Target_Job_Board] Playwright timed out on '{query}' page {page_num} — skipping")
+                logger.warning(f"[Spider] Playwright timed out on '{query}' page {page_num} — skipping")
                 return
 
             if await self._is_blocked(page):
-                logger.warning(f"[Target_Job_Board] Blocked on '{query}' page {page_num} — skipping")
+                logger.warning(f"[Spider] Blocked on '{query}' page {page_num} — skipping")
                 return
 
             # Re-get content after JS rendering
@@ -164,7 +164,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
                 # Fallback selectors
                 cards = new_response.css("div.css-1g4o566, div[class*='css-'] h2 a[href*='/jobs/p/']")
 
-            logger.info(f"[Target_Job_Board] Query '{query}' page {page_num}: {len(cards)} cards found")
+            logger.info(f"[Spider] Query '{query}' page {page_num}: {len(cards)} cards found")
 
             jobs_on_page = 0
             stop_pagination = False
@@ -214,7 +214,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
                 # Check if we've reached jobs older than 3 months
                 # We look for 4+ months or years
                 if any(x in date_lower for x in ["4 months", "5 months", "6 months", "7 months", "8 months", "9 months", "10 months", "11 months", "year"]):
-                    logger.info(f"[Target_Job_Board] Found old job ({date_posted}) on '{query}'. Will stop paginating after this page.")
+                    logger.info(f"[Spider] Found old job ({date_posted}) on '{query}'. Will stop paginating after this page.")
                     stop_pagination = True
                     # Skip scraping this specific card since it's too old
                     continue
@@ -258,7 +258,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
                     "nav a[aria-label='Next'], li.next a"
                 )
                 if has_next:
-                    logger.info(f"[Target_Job_Board] Following to page {next_page} for '{query}'")
+                    logger.info(f"[Spider] Following to page {next_page} for '{query}'")
                     yield scrapy.Request(
                         next_url,
                         meta={
@@ -276,9 +276,9 @@ class Target_Job_BoardSpider(scrapy.Spider):
                         dont_filter=True,
                     )
                 else:
-                    logger.info(f"[Target_Job_Board] No more pages for '{query}' (stopped at page {page_num})")
+                    logger.info(f"[Spider] No more pages for '{query}' (stopped at page {page_num})")
             else:
-                logger.info(f"[Target_Job_Board] Finished query '{query}' at page {page_num}")
+                logger.info(f"[Spider] Finished query '{query}' at page {page_num}")
 
         finally:
             if page:
@@ -300,7 +300,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
                     timeout=20
                 )
             except asyncio.TimeoutError:
-                logger.warning(f"[Target_Job_Board] Detail page timed out: {response.url} — skipping")
+                logger.warning(f"[Spider] Detail page timed out: {response.url} — skipping")
                 return
 
             content = await page.content()
@@ -333,7 +333,7 @@ class Target_Job_BoardSpider(scrapy.Spider):
 
             # ── Extract additional metadata (Robust extraction) ───────────────
             def get_meta_value(label_name):
-                # Target_Job_Board uses a span for the label and a following span for the value
+                # The site uses a span for the label and a following span for the value
                 xpath = f"//span[contains(text(), '{label_name}')]/following-sibling::span/text()"
                 val = new_response.xpath(xpath).get(default="").strip()
                 if not val:
@@ -433,13 +433,13 @@ class Target_Job_BoardSpider(scrapy.Spider):
             return False
 
     async def errback_handler(self, failure):
-        logger.error(f"[Target_Job_Board] Request failed: {failure.request.url} — {failure.value}")
+        logger.error(f"[Spider] Request failed: {failure.request.url} — {failure.value}")
         page = failure.request.meta.get("playwright_page")
         if page:
             await page.close()
 
     def closed(self, reason):
         logger.info(
-            f"[Target_Job_Board Spider Closed] reason={reason} | "
+            f"[Spider Closed] reason={reason} | "
             f"Total jobs scraped: {self.items_scraped}"
         )
