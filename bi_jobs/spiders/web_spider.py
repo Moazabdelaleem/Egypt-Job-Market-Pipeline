@@ -17,12 +17,16 @@ Anti-detection:
   • CAPTCHA detection + graceful skip
 """
 
+import os
 import re
 import random
 import logging
 import asyncio
 from datetime import datetime
 from urllib.parse import urlencode, urljoin
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import scrapy
 from bi_jobs.items import BiJobsItem
@@ -90,7 +94,7 @@ MAX_PAGES_PER_QUERY = 10  # ~150 jobs per query; dedup handles overlap
 
 class JobMarketSpider(scrapy.Spider):
     name = "web_spider"
-    allowed_domains = ["jobboard.com"]
+    # allowed_domains dynamically handled or not restricted
     custom_settings = {
         "CONCURRENT_REQUESTS": 3,
         "CONCURRENT_REQUESTS_PER_DOMAIN": 3,
@@ -111,8 +115,11 @@ class JobMarketSpider(scrapy.Spider):
 
     # ── Generate start requests ───────────────────────────────────────────────
     def start_requests(self):
+        base_url = os.getenv('JOB_BOARD_URL')
+        if not base_url:
+            raise ValueError("JOB_BOARD_URL not found in .env")
         for query in SEARCH_QUERIES:
-            url = f"https://jobboard.com/search/jobs/?q={query}&a=hpb"
+            url = f"{base_url}?q={query}&a=hpb"
             logger.info(f"[Spider] Starting search: '{query}' → {url}")
 
             yield scrapy.Request(
@@ -249,8 +256,9 @@ class JobMarketSpider(scrapy.Spider):
             # ── Pagination ────────────────────────────────────────────────────
             if jobs_on_page > 0 and page_num < MAX_PAGES_PER_QUERY and not stop_pagination:
                 next_page = page_num + 1
+                base_url = os.getenv('JOB_BOARD_URL')
                 next_url = (
-                    f"https://jobboard.com/search/jobs/?q={query}&a=hpb&start={next_page - 1}"
+                    f"{base_url}?q={query}&a=hpb&start={next_page - 1}"
                 )
                 # Check if there's actually a next page link
                 has_next = new_response.css(
