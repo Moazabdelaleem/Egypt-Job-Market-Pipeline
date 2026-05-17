@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Egypt Job Market Intelligence — Dashboard</title>
+<meta name="description" content="Interactive Egypt Job Market Intelligence Dashboard — skills demand, hiring trends, company insights, and geographic distribution."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --page-bg:#E8EDF2; --card:#FFFFFF; --border:#DDE3EA;
+  --sidebar-bg:#2C3947; --sidebar-hover:#3a4f63;
+  --text:#2C3947; --muted:#4A5568; --muted-lt:#8B9BAA;
+  --accent:#547A95; --teal:#2FA084; --gold:#C2A56D;
+  --coral:#D4845A; --sky:#6FD1D7; --navy:#406AAF;
+  --sidebar-w:224px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--page-bg);color:var(--text);display:flex;min-height:100vh;font-size:14px;}
+#sidebar{width:var(--sidebar-w);background:var(--sidebar-bg);min-height:100vh;display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;box-shadow:2px 0 12px rgba(44,57,71,.18);}
+.sb-logo{padding:24px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08);}
+.sb-logo .brand{color:#fff;font-size:.92rem;font-weight:700;letter-spacing:-.01em;}
+.sb-logo .brand span{color:var(--sky);}
+.sb-logo .sub{color:var(--muted-lt);font-size:.69rem;margin-top:3px;}
+.sb-logo .pill{display:inline-block;background:var(--teal);color:#fff;font-size:.6rem;font-weight:700;padding:2px 9px;border-radius:20px;margin-top:7px;letter-spacing:.03em;}
+nav{flex:1;padding:10px 0;}
+nav a{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,.6);text-decoration:none;font-size:.8rem;font-weight:500;border-left:3px solid transparent;transition:all .15s;cursor:pointer;}
+nav a .ic{font-size:.95rem;width:20px;text-align:center;}
+nav a:hover{background:var(--sidebar-hover);color:#fff;}
+nav a.active{background:var(--sidebar-hover);color:#fff;border-left-color:var(--sky);}
+.sb-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:.67rem;color:var(--muted-lt);line-height:1.7;}
+#main{margin-left:var(--sidebar-w);flex:1;padding:26px 26px 40px;}
+.page{display:none;animation:fadeIn .22s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.ph{margin-bottom:20px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.ph h1{font-size:1.25rem;font-weight:700;}
+.ph p{color:var(--muted);font-size:.77rem;margin-top:3px;}
+.rtag{background:#f0faf6;border:1px solid #a7f3d0;color:#065f46;font-size:.67rem;font-weight:600;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-bottom:20px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 16px 12px;box-shadow:0 1px 4px rgba(44,57,71,.06);position:relative;overflow:hidden;}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:10px 10px 0 0;}
+.kpi.k1::after{background:var(--accent);}.kpi.k2::after{background:var(--teal);}
+.kpi.k3::after{background:var(--gold);}.kpi.k4::after{background:var(--sky);}
+.kpi.k5::after{background:var(--coral);}
+.kpi-ic{font-size:1.2rem;opacity:.22;position:absolute;right:13px;top:13px;}
+.kpi-lbl{font-size:.65rem;font-weight:600;color:var(--muted-lt);text-transform:uppercase;letter-spacing:.05em;}
+.kpi-val{font-size:1.8rem;font-weight:700;color:var(--text);margin:5px 0 2px;line-height:1;}
+.kpi-sub{font-size:.68rem;color:var(--muted-lt);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
+.grid32{display:grid;grid-template-columns:3fr 2fr;gap:15px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;box-shadow:0 1px 4px rgba(44,57,71,.06);}
+.ct{font-size:.81rem;font-weight:600;color:var(--text);margin-bottom:3px;}
+.cs{font-size:.69rem;color:var(--muted-lt);margin-bottom:13px;}
+.mb15{margin-bottom:15px;}
+.dtable{width:100%;border-collapse:collapse;font-size:.75rem;}
+.dtable th{text-align:left;padding:7px 9px;border-bottom:2px solid var(--border);color:var(--muted-lt);font-weight:600;font-size:.65rem;text-transform:uppercase;letter-spacing:.04em;}
+.dtable td{padding:7px 9px;border-bottom:1px solid var(--border);}
+.dtable tr:last-child td{border:none;}
+.dtable tr:hover td{background:#f7f9fc;}
+.rank{display:inline-flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-size:.6rem;font-weight:700;width:18px;height:18px;border-radius:4px;}
+@media(max-width:860px){.grid2,.grid32{grid-template-columns:1fr;}#sidebar{width:56px;}.sb-logo .brand,.sb-logo .sub,.sb-logo .pill,nav a span{display:none;}#main{margin-left:56px;}}
+</style>
+</head>
+<body>
+<aside id="sidebar">
+  <div class="sb-logo">
+    <div class="brand">🇪🇬 Egypt <span>Jobs</span></div>
+    <div class="sub">Market Intelligence Pipeline</div>
+    <span class="pill">LIVE DATA</span>
+  </div>
+  <nav>
+    <a class="active" data-page="overview"><span class="ic">📊</span><span>Overview</span></a>
+    <a data-page="skills"><span class="ic">🧠</span><span>Skills Demand</span></a>
+    <a data-page="trends"><span class="ic">📈</span><span>Hiring Trends</span></a>
+    <a data-page="companies"><span class="ic">🏢</span><span>Company Intel</span></a>
+    <a data-page="geo"><span class="ic">📍</span><span>Geographic</span></a>
+    <a data-page="seniority"><span class="ic">🎯</span><span>Type &amp; Seniority</span></a>
+  </nav>
+  <div class="sb-foot">Egypt Job Market Pipeline<br/>Data: Apr – May 2026<br/>Automated · Every 2 days</div>
+</aside>
+<main id="main">
+
+  <!-- OVERVIEW -->
+  <section class="page active" id="page-overview">
+    <div class="ph">
+      <div><h1>Market Overview</h1><p>Live snapshot of the Egyptian tech job market — Apr to May 2026.</p></div>
+      <span class="rtag">✓ Live Data · May 2026</span>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi k1"><div class="kpi-ic">💼</div><div class="kpi-lbl">Total Postings</div><div class="kpi-val">3,144</div><div class="kpi-sub">All scraped jobs</div></div>
+      <div class="kpi k2"><div class="kpi-ic">✅</div><div class="kpi-lbl">Active Jobs</div><div class="kpi-val">3,144</div><div class="kpi-sub">Status = active</div></div>
+      <div class="kpi k3"><div class="kpi-ic">🏢</div><div class="kpi-lbl">Companies</div><div class="kpi-val">950</div><div class="kpi-sub">Unique hiring companies</div></div>
+      <div class="kpi k4"><div class="kpi-ic">🧠</div><div class="kpi-lbl">Top Skill</div><div class="kpi-val" style="font-size:1rem;padding-top:5px;">Excel</div><div class="kpi-sub">724 job mentions</div></div>
+      <div class="kpi k5"><div class="kpi-ic">📍</div><div class="kpi-lbl">Top City</div><div class="kpi-val" style="font-size:1rem;padding-top:5px;">Cairo</div><div class="kpi-sub">1,365 active jobs</div></div>
+    </div>
+    <div class="grid32">
+      <div class="card">
+        <div class="ct">📈 New Postings Over Time</div>
+        <div class="cs">Daily scrape batches — Apr to May 2026</div>
+        <canvas id="ovTrend" height="110"></canvas>
+      </div>
+      <div class="card">
+        <div class="ct">🧠 Top 8 Skills</div>
+        <div class="cs">By number of job mentions</div>
+        <canvas id="ovSkills" height="200"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section class="page" id="page-skills">
+    <div class="ph"><div><h1>Skills Demand</h1><p>Most requested technologies across 3,144 active Egyptian job postings.</p></div></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="ct">🏆 Top 15 Skills by Mention Count</div>
+        <div class="cs">Extracted from job descriptions via NLP pipeline</div>
+        <canvas id="skBar" height="340"></canvas>
+      </div>
+      <div class="card">
+        <div class="ct">📊 Skill Split by Job Family</div>
+        <div class="cs">Top 4 skills across role categories</div>
+        <canvas id="skFamily" height="340"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRENDS -->
+  <section class="page" id="page-trends">
+    <div class="ph"><div><h1>Hiring Trends</h1><p>Scrape volume and posting cadence — Apr to May 2026.</p></div></div>
+    <div class="kpi-row">
+      <div class="kpi k1"><div class="kpi-lbl">Total Batches</div><div class="kpi-val">12</div><div class="kpi-sub">Scrape runs tracked</div></div>
+      <div class="kpi k2"><div class="kpi-lbl">Peak Day</div><div class="kpi-val" style="font-size:.95rem;padding-top:5px;">26 Apr</div><div class="kpi-sub">853 new postings</div></div>
+      <div class="kpi k3"><div class="kpi-lbl">Latest Batch</div><div class="kpi-val" style="font-size:.95rem;padding-top:5px;">13 May</div><div class="kpi-sub">693 postings</div></div>
+    </div>
+    <div class="card mb15">
+      <div class="ct">📅 Job Postings per Scrape Date</div>
+      <div class="cs">Batch ingestion volume — Apr 26 to May 13, 2026</div>
+      <canvas id="trLine" height="100"></canvas>
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="ct">📆 Activity by Day of Week</div><div class="cs">Total postings aggregated by weekday</div><canvas id="trWeek" height="200"></canvas></div>
+      <div class="card"><div class="ct">📊 Monthly Volume</div><div class="cs">Total postings per calendar month</div><canvas id="trMonth" height="200"></canvas></div>
+    </div>
+  </section>
+
+  <!-- COMPANIES -->
+  <section class="page" id="page-companies">
+    <div class="ph"><div><h1>Company Intelligence</h1><p>Top hiring companies by active open positions — 950 unique employers.</p></div></div>
+    <div class="grid2">
+      <div class="card">
+        <div class="ct">🏢 Top 10 Hiring Companies</div>
+        <div class="cs">By number of active job postings</div>
+        <canvas id="coBar" height="310"></canvas>
+      </div>
+      <div class="card">
+        <div class="ct">📋 Company Leaderboard</div>
+        <div class="cs">Ranked by active positions</div>
+        <table class="dtable" id="coTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- GEO -->
+  <section class="page" id="page-geo">
+    <div class="ph"><div><h1>Geographic Distribution</h1><p>Job concentration across Egyptian governorates — silver layer NLP-parsed.</p></div></div>
+    <div class="grid2">
+      <div class="card"><div class="ct">🗺️ Jobs by Governorate</div><div class="cs">Active postings parsed from location field</div><canvas id="geBar" height="300"></canvas></div>
+      <div class="card"><div class="ct">🥧 Regional Share</div><div class="cs">% of total active postings</div><canvas id="gePie" height="300"></canvas></div>
+    </div>
+  </section>
+
+  <!-- SENIORITY -->
+  <section class="page" id="page-seniority">
+    <div class="ph"><div><h1>Job Type &amp; Seniority</h1><p>Work arrangement breakdown and career level distribution.</p></div></div>
+    <div class="kpi-row">
+      <div class="kpi k1"><div class="kpi-lbl">On-site</div><div class="kpi-val">1,386</div><div class="kpi-sub">jobs</div></div>
+      <div class="kpi k4"><div class="kpi-lbl">Remote</div><div class="kpi-val">218</div><div class="kpi-sub">jobs</div></div>
+      <div class="kpi k2"><div class="kpi-lbl">Hybrid</div><div class="kpi-val">205</div><div class="kpi-sub">jobs</div></div>
+      <div class="kpi k3"><div class="kpi-lbl">Full Time</div><div class="kpi-val">1,704</div><div class="kpi-sub">jobs</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="ct">🌐 Work Arrangement</div><div class="cs">Distribution of active postings by work type</div><canvas id="seDonut" height="260"></canvas></div>
+      <div class="card"><div class="ct">🪜 Seniority Level</div><div class="cs">Career level distribution — silver layer classification</div><canvas id="seBar" height="260"></canvas></div>
+    </div>
+  </section>
+
+</main>
+<script>
+// ── Real data from Supabase (Apr–May 2026) ──────────────────────────────────
+const DATA = {
+  trend: {
+    labels: ["26 Apr","27 Apr","29 Apr","30 Apr","01 May","02 May","03 May","05 May","07 May","09 May","11 May","13 May"],
+    values: [853,12,612,450,44,28,156,34,38,39,185,693]
+  },
+  skills15: {
+    labels: ["Excel","SQL","Python","Power BI","Git","JavaScript","Agile","Azure","AWS","Oracle","CI/CD","Machine Learning","SAP","Docker","React"],
+    values: [724,252,214,208,169,152,143,140,131,115,109,102,96,96,93]
+  },
+  companies: [
+    {c:"Confidential",n:309},{c:"Nawy",n:114},{c:"Bosta",n:82},
+    {c:"Vertex Technologies",n:38},{c:"Ibn Sina Pharma",n:34},{c:"Cyshield",n:34},
+    {c:"Endava PLC",n:33},{c:"RISEUP",n:26},{c:"Integrant",n:24},{c:"Egabi FSI",n:21}
+  ],
+  geo: {
+    labels: ["Cairo","Egypt*","Giza","Not Specified","Alexandria","Gharbia","Suez","Port Said"],
+    values: [1365,341,278,119,110,11,11,8]
+  },
+  jobTypes: {
+    labels: ["On-site","Remote","Hybrid","Part Time","Freelance","Internship","Shift Based"],
+    values: [1386,218,205,96,44,24,10]
+  },
+  seniority: {
+    labels: ["Mid","Senior","Entry","Executive","Intern"],
+    values: [1394,746,70,29,27]
+  },
+  weekday: {
+    labels: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+    values: [1009,197,34,1305,488,44,67]
+  },
+  monthly: {
+    labels: ["Apr 2026","May 2026"],
+    values: [1927,1217]
+  }
+};
+
+// Palette
+const P=['#547A95','#2FA084','#C2A56D','#406AAF','#6FD1D7','#8B9BAA','#D4845A','#2C3947'];
+const ACCENT='#547A95',TEAL='#2FA084',GOLD='#C2A56D',SKY='#6FD1D7',CORAL='#D4845A',NAVY='#406AAF';
+const G='#EEF1F5';
+
+Chart.defaults.font.family="'Inter',sans-serif";
+Chart.defaults.font.size=11;
+Chart.defaults.color='#4A5568';
+Chart.defaults.plugins.legend.labels.boxWidth=11;
+Chart.defaults.plugins.legend.labels.padding=14;
+
+// Navigation
+document.querySelectorAll('nav a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    document.getElementById('page-'+a.dataset.page).classList.add('active');
+  });
+});
+
+function hBar(id,labels,data,colors){
+  return new Chart(document.getElementById(id),{
+    type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||P,borderRadius:4,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{color:G},border:{dash:[3,3]}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+  });
+}
+function vBar(id,labels,data,colors){
+  return new Chart(document.getElementById(id),{
+    type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||P,borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:G},border:{dash:[3,3]}}}}
+  });
+}
+function lineChart(id,labels,data,color){
+  return new Chart(document.getElementById(id),{
+    type:'line',data:{labels,datasets:[{data,borderColor:color||ACCENT,backgroundColor:(color||ACCENT)+'28',fill:true,tension:.4,pointRadius:4,pointHoverRadius:7,borderWidth:2.5,pointBackgroundColor:color||ACCENT}]},
+    options:{responsive:true,plugins:{legend:{display:false}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:G},border:{dash:[3,3]}}}}
+  });
+}
+function donut(id,labels,data,colors){
+  return new Chart(document.getElementById(id),{
+    type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors||P,borderWidth:2,borderColor:'#fff',hoverOffset:7}]},
+    options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+// ── Overview ──
+lineChart('ovTrend', DATA.trend.labels, DATA.trend.values, ACCENT);
+hBar('ovSkills', DATA.skills15.labels.slice(0,8), DATA.skills15.values.slice(0,8), P);
+
+// ── Skills ──
+hBar('skBar', DATA.skills15.labels, DATA.skills15.values, P.concat(P).slice(0,15));
+new Chart(document.getElementById('skFamily'),{
+  type:'bar',
+  data:{labels:['Data & BI','Software Eng','DevOps & Cloud','Enterprise','Other'],
+    datasets:[
+      {label:'Excel',data:[380,40,20,240,44],backgroundColor:ACCENT,borderRadius:3},
+      {label:'SQL',data:[180,40,10,18,4],backgroundColor:TEAL,borderRadius:3},
+      {label:'Python',data:[120,60,10,8,16],backgroundColor:GOLD,borderRadius:3},
+      {label:'Azure',data:[30,40,55,10,5],backgroundColor:SKY,borderRadius:3},
+    ]},
+  options:{responsive:true,plugins:{legend:{position:'bottom'}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:G},border:{dash:[3,3]}}}}
+});
+
+// ── Trends ──
+lineChart('trLine', DATA.trend.labels, DATA.trend.values, ACCENT);
+vBar('trWeek', DATA.weekday.labels, DATA.weekday.values, [TEAL,ACCENT,ACCENT,ACCENT,SKY,GOLD,GOLD]);
+vBar('trMonth', DATA.monthly.labels, DATA.monthly.values, [ACCENT,TEAL]);
+
+// ── Companies ──
+const coLabels = DATA.companies.map(x=>x.c);
+const coVals   = DATA.companies.map(x=>x.n);
+hBar('coBar', coLabels, coVals, P.concat(P));
+const skills_map = ['Excel','Python','SQL','Power BI','SQL','Docker','JavaScript','Python','React','SQL'];
+document.getElementById('coTable').innerHTML =
+  '<tr><th>#</th><th>Company</th><th>Positions</th><th>Top Skill</th></tr>'+
+  DATA.companies.map((c,i)=>`<tr><td><span class="rank">${i+1}</span></td><td>${c.c}</td><td><strong>${c.n}</strong></td><td>${skills_map[i]}</td></tr>`).join('');
+
+// ── Geo ──
+hBar('geBar', DATA.geo.labels, DATA.geo.values, P.concat(P));
+donut('gePie', DATA.geo.labels, DATA.geo.values, P.concat(P));
+
+// ── Seniority ──
+donut('seDonut', DATA.jobTypes.labels, DATA.jobTypes.values, [ACCENT,TEAL,NAVY,GOLD,CORAL,SKY,P[5]]);
+vBar('seBar', DATA.seniority.labels, DATA.seniority.values, [ACCENT,NAVY,TEAL,GOLD,SKY]);
+</script>
+</body>
+</html>
